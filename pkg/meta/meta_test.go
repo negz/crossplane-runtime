@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/pkg/errors"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -890,6 +891,11 @@ func TestSetExternalName(t *testing.T) {
 			name: name,
 			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalName: name}}},
 		},
+		"ClearsExternalNamePending": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalNamePending: metav1.Now().Format(time.RFC3339)}}},
+			name: name,
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalName: name}}},
+		},
 	}
 
 	for name, tc := range cases {
@@ -929,6 +935,35 @@ func TestGetExternalCreateTime(t *testing.T) {
 	}
 }
 
+func TestGetExternalNamePending(t *testing.T) {
+	cases := map[string]struct {
+		o    metav1.Object
+		want bool
+	}{
+		"AnnotationWithTimestamp": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalNamePending: metav1.Now().Format(time.RFC3339)}}},
+			want: true,
+		},
+		"AnnotationWithArbitraryValue": {
+			o:    &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalNamePending: "I'm an arbitrary string!"}}},
+			want: true,
+		},
+		"NoAnnotation": {
+			o:    &corev1.Pod{},
+			want: false,
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got := GetExternalNamePending(tc.o)
+			if diff := cmp.Diff(tc.want, got); diff != "" {
+				t.Errorf("GetExternalNamePending(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
 func TestSetExternalCreateTime(t *testing.T) {
 	now := metav1.Now()
 
@@ -949,6 +984,27 @@ func TestSetExternalCreateTime(t *testing.T) {
 			SetExternalCreateTime(tc.o, tc.t)
 			if diff := cmp.Diff(tc.want, tc.o); diff != "" {
 				t.Errorf("SetExternalCreateTime(...): -want, +got:\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestSetExternalNamePending(t *testing.T) {
+	cases := map[string]struct {
+		o    metav1.Object
+		want metav1.Object
+	}{
+		"SetsTheCorrectKey": {
+			o:    &corev1.Pod{},
+			want: &corev1.Pod{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{AnnotationKeyExternalNamePending: metav1.Now().Format(time.RFC3339)}}},
+		},
+	}
+
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			SetExternalNamePending(tc.o)
+			if diff := cmp.Diff(tc.want, tc.o, cmpopts.EquateApproxTime(1*time.Minute)); diff != "" {
+				t.Errorf("SetExternalNamePending(...): -want, +got:\n%s", diff)
 			}
 		})
 	}
