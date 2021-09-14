@@ -8,6 +8,7 @@ require (
 	github.com/hashicorp/go-getter v1.4.0
 	github.com/imdario/mergo v0.3.12
 	github.com/spf13/afero v1.6.0
+	golang.org/x/oauth2 v0.0.0-20210402161424-2e8d93401602
 	golang.org/x/time v0.0.0-20210723032227-1f47c861a9ac
 	k8s.io/api v0.21.3
 	k8s.io/apiextensions-apiserver v0.21.3
