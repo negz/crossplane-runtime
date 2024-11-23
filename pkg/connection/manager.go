@@ -102,14 +102,13 @@ func NewDetailsManager(c client.Client, of schema.GroupVersionKind, o ...Details
 
 // PublishConnection publishes the supplied ConnectionDetails to a secret on
 // the configured connection Store.
-func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) (bool, error) {
+func (m *DetailsManager) PublishConnection(ctx context.Context, so store.SecretOwner, conn managed.ConnectionDetails) (bool, error) {
 	// This resource does not want to expose a connection secret.
-	p := so.GetPublishConnectionDetailsTo()
-	if p == nil {
+	if so.GetPublishConnectionDetailsTo() == nil {
 		return false, nil
 	}
 
-	ss, err := m.connectStore(ctx, p)
+	ss, err := m.connectStore(ctx, so)
 	if err != nil {
 		return false, errors.Wrap(err, errConnectStore)
 	}
@@ -120,14 +119,13 @@ func (m *DetailsManager) PublishConnection(ctx context.Context, so resource.Conn
 
 // UnpublishConnection deletes connection details secret to the configured
 // connection Store.
-func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, conn managed.ConnectionDetails) error {
+func (m *DetailsManager) UnpublishConnection(ctx context.Context, so store.SecretOwner, conn managed.ConnectionDetails) error {
 	// This resource didn't expose a connection secret.
-	p := so.GetPublishConnectionDetailsTo()
-	if p == nil {
+	if so.GetPublishConnectionDetailsTo() == nil {
 		return nil
 	}
 
-	ss, err := m.connectStore(ctx, p)
+	ss, err := m.connectStore(ctx, so)
 	if err != nil {
 		return errors.Wrap(err, errConnectStore)
 	}
@@ -136,30 +134,29 @@ func (m *DetailsManager) UnpublishConnection(ctx context.Context, so resource.Co
 }
 
 // FetchConnection fetches connection details of a given ConnectionSecretOwner.
-func (m *DetailsManager) FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (managed.ConnectionDetails, error) {
+func (m *DetailsManager) FetchConnection(ctx context.Context, so store.SecretOwner) (managed.ConnectionDetails, error) {
 	// This resource does not want to expose a connection secret.
-	p := so.GetPublishConnectionDetailsTo()
-	if p == nil {
+	if so.GetPublishConnectionDetailsTo() == nil {
 		return nil, nil
 	}
 
-	ss, err := m.connectStore(ctx, p)
+	ss, err := m.connectStore(ctx, so)
 	if err != nil {
 		return nil, errors.Wrap(err, errConnectStore)
 	}
 
 	s := &store.Secret{}
-	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: p.Name, Scope: so.GetNamespace()}, s), errReadStore)
+	return managed.ConnectionDetails(s.Data), errors.Wrap(ss.ReadKeyValues(ctx, store.ScopedName{Name: so.GetPublishConnectionDetailsTo().Name, Scope: so.GetNamespace()}, s), errReadStore)
 }
 
 // PropagateConnection propagate connection details from one resource to another.
-func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.LocalConnectionSecretOwner, from resource.ConnectionSecretOwner) (propagated bool, err error) {
+func (m *DetailsManager) PropagateConnection(ctx context.Context, to, from store.SecretOwner) (propagated bool, err error) {
 	// Either from does not expose a connection secret, or to does not want one.
 	if from.GetPublishConnectionDetailsTo() == nil || to.GetPublishConnectionDetailsTo() == nil {
 		return false, nil
 	}
 
-	ssFrom, err := m.connectStore(ctx, from.GetPublishConnectionDetailsTo())
+	ssFrom, err := m.connectStore(ctx, from)
 	if err != nil {
 		return false, errors.Wrap(err, errConnectStore)
 	}
@@ -179,7 +176,7 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 		return false, errors.New(errSecretConflict)
 	}
 
-	ssTo, err := m.connectStore(ctx, to.GetPublishConnectionDetailsTo())
+	ssTo, err := m.connectStore(ctx, to)
 	if err != nil {
 		return false, errors.Wrap(err, errConnectStore)
 	}
@@ -188,9 +185,9 @@ func (m *DetailsManager) PropagateConnection(ctx context.Context, to resource.Lo
 	return changed, errors.Wrap(err, errWriteStore)
 }
 
-func (m *DetailsManager) connectStore(ctx context.Context, p *v1.PublishConnectionDetailsTo) (Store, error) {
+func (m *DetailsManager) connectStore(ctx context.Context, so store.SecretOwner) (Store, error) {
 	sc := m.newConfig()
-	if err := m.client.Get(ctx, types.NamespacedName{Name: p.SecretStoreConfigRef.Name}, sc); err != nil {
+	if err := m.client.Get(ctx, types.NamespacedName{Namespace: so.GetNamespace(), Name: so.GetPublishConnectionDetailsTo().SecretStoreConfigRef.Name}, sc); err != nil {
 		return nil, errors.Wrap(err, errGetStoreConfig)
 	}
 

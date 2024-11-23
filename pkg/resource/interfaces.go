@@ -35,12 +35,6 @@ type Conditioned interface {
 	GetCondition(ct xpv1.ConditionType) xpv1.Condition
 }
 
-// A ClaimReferencer may reference a resource claim.
-type ClaimReferencer interface {
-	SetClaimReference(r *reference.Claim)
-	GetClaimReference() *reference.Claim
-}
-
 // A ManagedResourceReferencer may reference a concrete managed resource.
 type ManagedResourceReferencer interface {
 	SetResourceReference(r *corev1.ObjectReference)
@@ -67,6 +61,8 @@ type ConnectionDetailsPublisherTo interface {
 	SetPublishConnectionDetailsTo(r *xpv1.PublishConnectionDetailsTo)
 	GetPublishConnectionDetailsTo() *xpv1.PublishConnectionDetailsTo
 }
+
+// TODO(negz): SetManagementPolicies should take variadic args.
 
 // A Manageable resource may specify a ManagementPolicies.
 type Manageable interface {
@@ -190,14 +186,12 @@ type Object interface {
 
 // A Managed is a Kubernetes object representing a concrete managed
 // resource (e.g. a CloudSQL instance).
-type Managed interface { //nolint:interfacebloat // This interface has to be big.
+type Managed interface {
 	Object
 
 	ProviderConfigReferencer
-	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
 	Manageable
-	Orphanable
 
 	Conditioned
 }
@@ -244,9 +238,6 @@ type Composite interface { //nolint:interfacebloat // This interface has to be b
 	CompositionRevisionReferencer
 	CompositionRevisionSelector
 	ComposedResourcesReferencer
-	EnvironmentConfigReferencer
-	ClaimReferencer
-	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
 
 	Conditioned
@@ -259,26 +250,6 @@ type Composed interface {
 	Object
 
 	Conditioned
-	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
-	ReconciliationObserver
-}
-
-// A CompositeClaim for a Composite resource.
-type CompositeClaim interface { //nolint:interfacebloat // This interface has to be big.
-	Object
-
-	CompositionSelector
-	CompositionReferencer
-	CompositionUpdater
-	CompositionRevisionReferencer
-	CompositionRevisionSelector
-	CompositeResourceDeleter
-	CompositeResourceReferencer
-	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
-
-	Conditioned
-	ConnectionDetailsPublishedTimer
 	ReconciliationObserver
 }

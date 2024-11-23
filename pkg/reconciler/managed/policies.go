@@ -27,10 +27,8 @@ import (
 // ManagementPoliciesResolver is used to perform management policy checks
 // based on the management policy and if the management policy feature is enabled.
 type ManagementPoliciesResolver struct {
-	enabled            bool
 	supportedPolicies  []sets.Set[xpv1.ManagementAction]
 	managementPolicies sets.Set[xpv1.ManagementAction]
-	deletionPolicy     xpv1.DeletionPolicy
 }
 
 // A ManagementPoliciesResolverOption configures a ManagementPoliciesResolver.
@@ -95,12 +93,10 @@ func defaultSupportedManagementPolicies() []sets.Set[xpv1.ManagementAction] {
 // NewManagementPoliciesResolver returns an ManagementPolicyChecker based
 // on the management policies and if the management policies feature
 // is enabled.
-func NewManagementPoliciesResolver(managementPolicyEnabled bool, managementPolicy xpv1.ManagementPolicies, deletionPolicy xpv1.DeletionPolicy, o ...ManagementPoliciesResolverOption) ManagementPoliciesChecker {
+func NewManagementPoliciesResolver(pols xpv1.ManagementPolicies, o ...ManagementPoliciesResolverOption) ManagementPoliciesChecker {
 	r := &ManagementPoliciesResolver{
-		enabled:            managementPolicyEnabled,
 		supportedPolicies:  defaultSupportedManagementPolicies(),
-		managementPolicies: sets.New[xpv1.ManagementAction](managementPolicy...),
-		deletionPolicy:     deletionPolicy,
+		managementPolicies: sets.New[xpv1.ManagementAction](pols...),
 	}
 
 	for _, ro := range o {
@@ -116,15 +112,6 @@ func NewManagementPoliciesResolver(managementPolicyEnabled bool, managementPolic
 // If the management policy feature is enabled, but uses a non-supported value,
 // it returns an error.
 func (m *ManagementPoliciesResolver) Validate() error {
-	// check if its disabled, but uses a non-default value.
-	if !m.enabled {
-		if !m.managementPolicies.Equal(sets.New[xpv1.ManagementAction](xpv1.ManagementActionAll)) && m.managementPolicies.Len() != 0 {
-			return fmt.Errorf(errFmtManagementPolicyNonDefault, m.managementPolicies.UnsortedList())
-		}
-		// if its just disabled we don't care about supported policies
-		return nil
-	}
-
 	// check if the policy is a non-supported combination
 	for _, p := range m.supportedPolicies {
 		if p.Equal(m.managementPolicies) {
@@ -134,82 +121,33 @@ func (m *ManagementPoliciesResolver) Validate() error {
 	return fmt.Errorf(errFmtManagementPolicyNotSupported, m.managementPolicies.UnsortedList())
 }
 
-// IsPaused returns true if the management policy is empty and the
-// management policies feature is enabled.
+// IsPaused returns true if the management policy is empty.
 func (m *ManagementPoliciesResolver) IsPaused() bool {
-	if !m.enabled {
-		return false
-	}
 	return m.managementPolicies.Len() == 0
 }
 
 // ShouldCreate returns true if the Create action is allowed.
-// If the management policy feature is disabled, it returns true.
 func (m *ManagementPoliciesResolver) ShouldCreate() bool {
-	if !m.enabled {
-		return true
-	}
 	return m.managementPolicies.HasAny(xpv1.ManagementActionCreate, xpv1.ManagementActionAll)
 }
 
 // ShouldUpdate returns true if the Update action is allowed.
-// If the management policy feature is disabled, it returns true.
 func (m *ManagementPoliciesResolver) ShouldUpdate() bool {
-	if !m.enabled {
-		return true
-	}
 	return m.managementPolicies.HasAny(xpv1.ManagementActionUpdate, xpv1.ManagementActionAll)
 }
 
 // ShouldLateInitialize returns true if the LateInitialize action is allowed.
-// If the management policy feature is disabled, it returns true.
 func (m *ManagementPoliciesResolver) ShouldLateInitialize() bool {
-	if !m.enabled {
-		return true
-	}
 	return m.managementPolicies.HasAny(xpv1.ManagementActionLateInitialize, xpv1.ManagementActionAll)
 }
 
 // ShouldOnlyObserve returns true if the Observe action is allowed and all
-// other actions are not allowed. If the management policy feature is disabled,
-// it returns false.
+// other actions are not allowed.
 func (m *ManagementPoliciesResolver) ShouldOnlyObserve() bool {
-	if !m.enabled {
-		return false
-	}
-	return m.managementPolicies.Equal(sets.New[xpv1.ManagementAction](xpv1.ManagementActionObserve))
+	return m.managementPolicies.Equal(sets.New(xpv1.ManagementActionObserve))
 }
 
-// ShouldDelete returns true based on the combination of the deletionPolicy and
-// the managementPolicies. If the management policy feature is disabled, it
-// returns true if the deletionPolicy is set to "Delete". Otherwise, it checks
-// which field is set to a non-default value and makes a decision based on that.
-// We need to be careful until we completely remove the deletionPolicy in favor
-// of managementPolicies which conflict with the deletionPolicy regarding
-// deleting of the external resource. This function implements the proposal in
-// the Ignore Changes design doc under the "Deprecation of `deletionPolicy`".
+// ShouldDelete returns true if the Delete action is allowed.
 func (m *ManagementPoliciesResolver) ShouldDelete() bool {
-	if !m.enabled {
-		return m.deletionPolicy != xpv1.DeletionOrphan
-	}
-
-	// delete external resource if both the deletionPolicy and the
-	// managementPolicies are set to delete
-	if m.deletionPolicy == xpv1.DeletionDelete && m.managementPolicies.HasAny(xpv1.ManagementActionDelete, xpv1.ManagementActionAll) {
-		return true
-	}
-	// if the managementPolicies is not default, and it contains the deletion
-	// action, we should delete the external resource
-	if !m.managementPolicies.Equal(sets.New[xpv1.ManagementAction](xpv1.ManagementActionAll)) && m.managementPolicies.Has(xpv1.ManagementActionDelete) {
-		return true
-	}
-
-	// For all other cases, we should orphan the external resource.
-	// Obvious cases:
-	// DeletionOrphan && ManagementPolicies without Delete Action
-	// Conflicting cases:
-	// DeletionOrphan && Management Policy ["*"] (obeys non-default configuration)
-	// DeletionDelete && ManagementPolicies that does not include the Delete
-	// Action (obeys non-default configuration)
-	return false
+	return m.managementPolicies.HasAny(xpv1.ManagementActionDelete, xpv1.ManagementActionAll)
 }

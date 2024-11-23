@@ -31,9 +31,9 @@ import (
 
 	"github.com/crossplane/crossplane-runtime/apis/changelogs/proto/v1alpha1"
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
+	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/event"
-	"github.com/crossplane/crossplane-runtime/pkg/feature"
 	"github.com/crossplane/crossplane-runtime/pkg/logging"
 	"github.com/crossplane/crossplane-runtime/pkg/meta"
 	"github.com/crossplane/crossplane-runtime/pkg/resource"
@@ -152,32 +152,45 @@ type ConnectionPublisher interface {
 	// PublishConnection details for the supplied Managed resource. Publishing
 	// must be additive; i.e. if details (a, b, c) are published, subsequently
 	// publicing details (b, c, d) should update (b, c) but not remove a.
-	PublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c ConnectionDetails) (published bool, err error)
+	PublishConnection(ctx context.Context, so store.SecretOwner, c ConnectionDetails) (published bool, err error)
 
 	// UnpublishConnection details for the supplied Managed resource.
-	UnpublishConnection(ctx context.Context, so resource.ConnectionSecretOwner, c ConnectionDetails) error
+	UnpublishConnection(ctx context.Context, so store.SecretOwner, c ConnectionDetails) error
+}
+
+// A NopConnectionPublisher does nothing.
+type NopConnectionPublisher struct{}
+
+// PublishConnection does nothing.
+func (p *NopConnectionPublisher) PublishConnection(_ context.Context, _ store.SecretOwner, _ ConnectionDetails) (bool, error) {
+	return false, nil
+}
+
+// UnpublishConnection does nothing.
+func (p *NopConnectionPublisher) UnpublishConnection(_ context.Context, _ store.SecretOwner, _ ConnectionDetails) error {
+	return nil
 }
 
 // ConnectionPublisherFns is the pluggable struct to produce objects with ConnectionPublisher interface.
 type ConnectionPublisherFns struct {
-	PublishConnectionFn   func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error)
-	UnpublishConnectionFn func(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error
+	PublishConnectionFn   func(ctx context.Context, o store.SecretOwner, c ConnectionDetails) (bool, error)
+	UnpublishConnectionFn func(ctx context.Context, o store.SecretOwner, c ConnectionDetails) error
 }
 
 // PublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) (bool, error) {
+func (fn ConnectionPublisherFns) PublishConnection(ctx context.Context, o store.SecretOwner, c ConnectionDetails) (bool, error) {
 	return fn.PublishConnectionFn(ctx, o, c)
 }
 
 // UnpublishConnection details for the supplied Managed resource.
-func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o resource.ConnectionSecretOwner, c ConnectionDetails) error {
+func (fn ConnectionPublisherFns) UnpublishConnection(ctx context.Context, o store.SecretOwner, c ConnectionDetails) error {
 	return fn.UnpublishConnectionFn(ctx, o, c)
 }
 
 // A ConnectionDetailsFetcher fetches connection details for the supplied
 // Connection Secret owner.
 type ConnectionDetailsFetcher interface {
-	FetchConnection(ctx context.Context, so resource.ConnectionSecretOwner) (ConnectionDetails, error)
+	FetchConnection(ctx context.Context, so store.SecretOwner) (ConnectionDetails, error)
 }
 
 // A Initializer establishes ownership of the supplied Managed resource.
@@ -240,58 +253,6 @@ type TypedExternalConnecter[managed resource.Managed] interface {
 	Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error)
 }
 
-// An ExternalDisconnecter disconnects from a provider.
-//
-// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting
-// from the provider.
-type ExternalDisconnecter interface {
-	// Disconnect from the provider and close the ExternalClient.
-	Disconnect(ctx context.Context) error
-}
-
-// A NopDisconnecter converts an ExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-type NopDisconnecter = TypedNopDisconnecter[resource.Managed]
-
-// A TypedNopDisconnecter converts an ExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-type TypedNopDisconnecter[managed resource.Managed] struct {
-	c TypedExternalConnecter[managed]
-}
-
-// Connect calls the underlying ExternalConnecter's Connect method.
-func (c *TypedNopDisconnecter[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
-	return c.c.Connect(ctx, mg)
-}
-
-// Disconnect does nothing. It never returns an error.
-func (c *TypedNopDisconnecter[managed]) Disconnect(_ context.Context) error {
-	return nil
-}
-
-// NewNopDisconnecter converts an ExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-func NewNopDisconnecter(c ExternalConnecter) ExternalConnectDisconnecter {
-	return NewTypedNopDisconnecter(c)
-}
-
-// NewTypedNopDisconnecter converts an TypedExternalConnecter into an
-// ExternalConnectDisconnecter with a no-op Disconnect method.
-func NewTypedNopDisconnecter[managed resource.Managed](c TypedExternalConnecter[managed]) TypedExternalConnectDisconnecter[managed] {
-	return &TypedNopDisconnecter[managed]{c}
-}
-
-// An ExternalConnectDisconnecter produces a new ExternalClient given the supplied
-// Managed resource.
-type ExternalConnectDisconnecter = TypedExternalConnectDisconnecter[resource.Managed]
-
-// A TypedExternalConnectDisconnecter produces a new ExternalClient given the supplied
-// Managed resource.
-type TypedExternalConnectDisconnecter[managed resource.Managed] interface {
-	TypedExternalConnecter[managed]
-	ExternalDisconnecter
-}
-
 // An ExternalConnectorFn is a function that satisfies the ExternalConnecter
 // interface.
 type ExternalConnectorFn = TypedExternalConnectorFn[resource.Managed]
@@ -304,37 +265,6 @@ type TypedExternalConnectorFn[managed resource.Managed] func(ctx context.Context
 // produce an ExternalClient.
 func (ec TypedExternalConnectorFn[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
 	return ec(ctx, mg)
-}
-
-// An ExternalDisconnectorFn is a function that satisfies the ExternalConnecter
-// interface.
-type ExternalDisconnectorFn func(ctx context.Context) error
-
-// Disconnect from provider and close the ExternalClient.
-func (ed ExternalDisconnectorFn) Disconnect(ctx context.Context) error {
-	return ed(ctx)
-}
-
-// ExternalConnectDisconnecterFns are functions that satisfy the
-// ExternalConnectDisconnecter interface.
-type ExternalConnectDisconnecterFns = TypedExternalConnectDisconnecterFns[resource.Managed]
-
-// TypedExternalConnectDisconnecterFns are functions that satisfy the
-// TypedExternalConnectDisconnecter interface.
-type TypedExternalConnectDisconnecterFns[managed resource.Managed] struct {
-	ConnectFn    func(ctx context.Context, mg managed) (TypedExternalClient[managed], error)
-	DisconnectFn func(ctx context.Context) error
-}
-
-// Connect to the provider specified by the supplied managed resource and
-// produce an ExternalClient.
-func (fns TypedExternalConnectDisconnecterFns[managed]) Connect(ctx context.Context, mg managed) (TypedExternalClient[managed], error) {
-	return fns.ConnectFn(ctx, mg)
-}
-
-// Disconnect from the provider and close the ExternalClient.
-func (fns TypedExternalConnectDisconnecterFns[managed]) Disconnect(ctx context.Context) error {
-	return fns.DisconnectFn(ctx)
 }
 
 // An ExternalClient manages the lifecycle of an external resource.
@@ -553,8 +483,6 @@ type Reconciler struct {
 	timeout             time.Duration
 	creationGracePeriod time.Duration
 
-	features feature.Flags
-
 	// The below structs embed the set of interfaces used to implement the
 	// managed resource reconciler. We do this primarily for readability, so
 	// that the reconciler logic reads r.external.Connect(),
@@ -575,7 +503,6 @@ type mrManaged struct {
 	ConnectionPublisher
 	resource.Finalizer
 	Initializer
-	ReferenceResolver
 }
 
 func defaultMRManaged(m manager.Manager) mrManaged {
@@ -583,21 +510,17 @@ func defaultMRManaged(m manager.Manager) mrManaged {
 		CriticalAnnotationUpdater: NewRetryingCriticalAnnotationUpdater(m.GetClient()),
 		Finalizer:                 resource.NewAPIFinalizer(m.GetClient(), FinalizerName),
 		Initializer:               NewNameAsExternalName(m.GetClient()),
-		ReferenceResolver:         NewAPISimpleReferenceResolver(m.GetClient()),
-		ConnectionPublisher: PublisherChain([]ConnectionPublisher{
-			NewAPISecretPublisher(m.GetClient(), m.GetScheme()),
-			&DisabledSecretStoreManager{},
-		}),
+		ConnectionPublisher:       &NopConnectionPublisher{},
 	}
 }
 
 type mrExternal struct {
-	ExternalConnectDisconnecter
+	ExternalConnecter
 }
 
 func defaultMRExternal() mrExternal {
 	return mrExternal{
-		ExternalConnectDisconnecter: NewNopDisconnecter(&NopConnecter{}),
+		ExternalConnecter: &NopConnecter{},
 	}
 }
 
@@ -677,7 +600,7 @@ func WithCreationGracePeriod(d time.Duration) ReconcilerOption {
 // used to sync and delete external resources.
 func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = NewNopDisconnecter(c)
+		r.external.ExternalConnecter = c
 	}
 }
 
@@ -685,29 +608,7 @@ func WithExternalConnecter(c ExternalConnecter) ReconcilerOption {
 // used to sync and delete external resources.
 func WithTypedExternalConnector[managed resource.Managed](c TypedExternalConnecter[managed]) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = &typedExternalConnectDisconnecterWrapper[managed]{
-			c: NewTypedNopDisconnecter(c),
-		}
-	}
-}
-
-// WithExternalConnectDisconnecter specifies how the Reconciler should connect and disconnect to the API
-// used to sync and delete external resources.
-//
-// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting from the provider.
-func WithExternalConnectDisconnecter(c ExternalConnectDisconnecter) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = c
-	}
-}
-
-// WithTypedExternalConnectDisconnecter specifies how the Reconciler should connect and disconnect to the API
-// used to sync and delete external resources.
-//
-// Deprecated: Please use Disconnect() on the ExternalClient for disconnecting from the provider.
-func WithTypedExternalConnectDisconnecter[managed resource.Managed](c TypedExternalConnectDisconnecter[managed]) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.external.ExternalConnectDisconnecter = &typedExternalConnectDisconnecterWrapper[managed]{c}
+		r.external.ExternalConnecter = &typedExternalConnecterWrapper[managed]{c: c}
 	}
 }
 
@@ -721,11 +622,11 @@ func WithCriticalAnnotationUpdater(u CriticalAnnotationUpdater) ReconcilerOption
 	}
 }
 
-// WithConnectionPublishers specifies how the Reconciler should publish
+// WithConnectionPublisher specifies how the Reconciler should publish
 // its connection details such as credentials and endpoints.
-func WithConnectionPublishers(p ...ConnectionPublisher) ReconcilerOption {
+func WithConnectionPublisher(p ConnectionPublisher) ReconcilerOption {
 	return func(r *Reconciler) {
-		r.managed.ConnectionPublisher = PublisherChain(p)
+		r.managed.ConnectionPublisher = p
 	}
 }
 
@@ -745,14 +646,6 @@ func WithFinalizer(f resource.Finalizer) ReconcilerOption {
 	}
 }
 
-// WithReferenceResolver specifies how the Reconciler should resolve any
-// inter-resource references it encounters while reconciling managed resources.
-func WithReferenceResolver(rr ReferenceResolver) ReconcilerOption {
-	return func(r *Reconciler) {
-		r.managed.ReferenceResolver = rr
-	}
-}
-
 // WithLogger specifies how the Reconciler should log messages.
 func WithLogger(l logging.Logger) ReconcilerOption {
 	return func(r *Reconciler) {
@@ -764,13 +657,6 @@ func WithLogger(l logging.Logger) ReconcilerOption {
 func WithRecorder(er event.Recorder) ReconcilerOption {
 	return func(r *Reconciler) {
 		r.record = er
-	}
-}
-
-// WithManagementPolicies enables support for management policies.
-func WithManagementPolicies() ReconcilerOption {
-	return func(r *Reconciler) {
-		r.features.Enable(feature.EnableBetaManagementPolicies)
 	}
 }
 
@@ -863,15 +749,10 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		"external-name", meta.GetExternalName(managed),
 	)
 
-	managementPoliciesEnabled := r.features.Enabled(feature.EnableBetaManagementPolicies)
-	if managementPoliciesEnabled {
-		log.WithValues("managementPolicies", managed.GetManagementPolicies())
-	}
-
 	// Create the management policy resolver which will assist us in determining
 	// what actions to take on the managed resource based on the management
 	// and deletion policies.
-	policy := NewManagementPoliciesResolver(managementPoliciesEnabled, managed.GetManagementPolicies(), managed.GetDeletionPolicy(), WithSupportedManagementPolicies(r.supportedManagementPolicies))
+	policy := NewManagementPoliciesResolver(managed.GetManagementPolicies(), WithSupportedManagementPolicies(r.supportedManagementPolicies))
 
 	// Check if the resource has paused reconciliation based on the
 	// annotation or the management policies.
@@ -974,32 +855,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		return reconcile.Result{Requeue: false}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 
-	// We resolve any references before observing our external resource because
-	// in some rare examples we need a spec field to make the observe call, and
-	// that spec field could be set by a reference.
-	//
-	// We do not resolve references when being deleted because it is likely that
-	// the resources we reference are also being deleted, and would thus block
-	// resolution due to being unready or non-existent. It is unlikely (but not
-	// impossible) that we need to resolve a reference in order to process a
-	// delete, and that reference is stale at delete time.
-	if !meta.WasDeleted(managed) {
-		if err := r.managed.ResolveReferences(ctx, managed); err != nil {
-			// If any of our referenced resources are not yet ready (or if we
-			// encountered an error resolving them) we want to try again. If
-			// this is the first time we encounter this situation we'll be
-			// requeued implicitly due to the status update. If not, we want
-			// requeue explicitly, which will trigger backoff.
-			log.Debug("Cannot resolve managed resource references", "error", err)
-			if kerrors.IsConflict(err) {
-				return reconcile.Result{Requeue: true}, nil
-			}
-			record.Event(managed, event.Warning(reasonCannotResolveRefs, err))
-			managed.SetConditions(xpv1.ReconcileError(err))
-			return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
-		}
-	}
-
 	external, err := r.external.Connect(externalCtx, managed)
 	if err != nil {
 		// We'll usually hit this case if our Provider or its secret are missing
@@ -1016,11 +871,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, req reconcile.Request) (resu
 		return reconcile.Result{Requeue: true}, errors.Wrap(r.client.Status().Update(ctx, managed), errUpdateManagedStatus)
 	}
 	defer func() {
-		if err := r.external.Disconnect(ctx); err != nil {
-			log.Debug("Cannot disconnect from provider", "error", err)
-			record.Event(managed, event.Warning(reasonCannotDisconnect, err))
-		}
-
 		if err := external.Disconnect(ctx); err != nil {
 			log.Debug("Cannot disconnect from provider", "error", err)
 			record.Event(managed, event.Warning(reasonCannotDisconnect, err))

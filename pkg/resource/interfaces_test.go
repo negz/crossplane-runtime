@@ -18,7 +18,6 @@ package resource
 
 import (
 	"github.com/crossplane/crossplane-runtime/pkg/resource/fake"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/claim"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composed"
 	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/composite"
 )
@@ -31,11 +30,9 @@ var (
 	_ ProviderConfig      = &fake.ProviderConfig{}
 	_ ProviderConfigUsage = &fake.ProviderConfigUsage{}
 
-	_ CompositeClaim = &fake.CompositeClaim{}
-	_ Composite      = &fake.Composite{}
-	_ Composed       = &fake.Composed{}
+	_ Composite = &fake.Composite{}
+	_ Composed  = &fake.Composed{}
 
-	_ CompositeClaim = &claim.Unstructured{}
-	_ Composite      = &composite.Unstructured{}
-	_ Composed       = &composed.Unstructured{}
+	_ Composite = &composite.Unstructured{}
+	_ Composed  = &composed.Unstructured{}
 )

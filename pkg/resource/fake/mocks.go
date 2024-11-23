@@ -104,34 +104,6 @@ func (m *RequiredTypedResourceReferencer) GetResourceReference() xpv1.TypedRefer
 	return m.Ref
 }
 
-// LocalConnectionSecretWriterTo is a mock that implements LocalConnectionSecretWriterTo interface.
-type LocalConnectionSecretWriterTo struct {
-	Ref *xpv1.LocalSecretReference
-}
-
-// SetWriteConnectionSecretToReference sets the WriteConnectionSecretToReference.
-func (m *LocalConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *xpv1.LocalSecretReference) {
-	m.Ref = r
-}
-
-// GetWriteConnectionSecretToReference gets the WriteConnectionSecretToReference.
-func (m *LocalConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *xpv1.LocalSecretReference {
-	return m.Ref
-}
-
-// ConnectionSecretWriterTo is a mock that implements ConnectionSecretWriterTo interface.
-type ConnectionSecretWriterTo struct{ Ref *xpv1.SecretReference }
-
-// SetWriteConnectionSecretToReference sets the WriteConnectionSecretToReference.
-func (m *ConnectionSecretWriterTo) SetWriteConnectionSecretToReference(r *xpv1.SecretReference) {
-	m.Ref = r
-}
-
-// GetWriteConnectionSecretToReference gets the WriteConnectionSecretToReference.
-func (m *ConnectionSecretWriterTo) GetWriteConnectionSecretToReference() *xpv1.SecretReference {
-	return m.Ref
-}
-
 // ConnectionDetailsPublisherTo is a mock that implements ConnectionDetailsPublisherTo interface.
 type ConnectionDetailsPublisherTo struct {
 	To *xpv1.PublishConnectionDetailsTo
@@ -155,15 +127,6 @@ func (m *Manageable) SetManagementPolicies(p xpv1.ManagementPolicies) { m.Policy
 
 // GetManagementPolicies gets the ManagementPolicies.
 func (m *Manageable) GetManagementPolicies() xpv1.ManagementPolicies { return m.Policy }
-
-// Orphanable implements the Orphanable interface.
-type Orphanable struct{ Policy xpv1.DeletionPolicy }
-
-// SetDeletionPolicy sets the DeletionPolicy.
-func (m *Orphanable) SetDeletionPolicy(p xpv1.DeletionPolicy) { m.Policy = p }
-
-// GetDeletionPolicy gets the DeletionPolicy.
-func (m *Orphanable) GetDeletionPolicy() xpv1.DeletionPolicy { return m.Policy }
 
 // CompositionReferencer is a mock that implements CompositionReferencer interface.
 type CompositionReferencer struct{ Ref *corev1.ObjectReference }
@@ -327,10 +290,8 @@ func (o *Object) DeepCopyObject() runtime.Object {
 type Managed struct {
 	metav1.ObjectMeta
 	ProviderConfigReferencer
-	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
 	Manageable
-	Orphanable
 	xpv1.ConditionedStatus
 }
 
@@ -361,7 +322,6 @@ type Composite struct {
 	ComposedResourcesReferencer
 	EnvironmentConfigReferencer
 	ClaimReferencer
-	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
 
 	xpv1.ResourceStatus
@@ -387,7 +347,6 @@ func (m *Composite) DeepCopyObject() runtime.Object {
 // Composed is a mock that implements Composed interface.
 type Composed struct {
 	metav1.ObjectMeta
-	ConnectionSecretWriterTo
 	ConnectionDetailsPublisherTo
 	xpv1.ResourceStatus
 }
@@ -400,39 +359,6 @@ func (m *Composed) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Composed) DeepCopyObject() runtime.Object {
 	out := &Composed{}
-	j, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
-// CompositeClaim is a mock that implements the CompositeClaim interface.
-type CompositeClaim struct {
-	metav1.ObjectMeta
-	CompositionSelector
-	CompositionReferencer
-	CompositionRevisionReferencer
-	CompositionRevisionSelector
-	CompositeResourceDeleter
-	CompositionUpdater
-	CompositeResourceReferencer
-	LocalConnectionSecretWriterTo
-	ConnectionDetailsPublisherTo
-
-	xpv1.ResourceStatus
-	ConnectionDetailsLastPublishedTimer
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (m *CompositeClaim) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a copy of the object as runtime.Object.
-func (m *CompositeClaim) DeepCopyObject() runtime.Object {
-	out := &CompositeClaim{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)

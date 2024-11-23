@@ -32,7 +32,6 @@ import (
 	"github.com/crossplane/crossplane-runtime/pkg/connection/store"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
 	"github.com/crossplane/crossplane-runtime/pkg/reconciler/managed"
-	"github.com/crossplane/crossplane-runtime/pkg/resource"
 	resourcefake "github.com/crossplane/crossplane-runtime/pkg/resource/fake"
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 )
@@ -58,7 +57,7 @@ func TestManagerConnectStore(t *testing.T) {
 		c  client.Client
 		sb StoreBuilderFn
 
-		p *v1.PublishConnectionDetailsTo
+		so store.SecretOwner
 	}
 
 	type want struct {
@@ -80,9 +79,13 @@ func TestManagerConnectStore(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{}),
-				p: &v1.PublishConnectionDetailsTo{
-					SecretStoreConfigRef: &v1.Reference{
-						Name: fakeConfig,
+				so: &resourcefake.Managed{
+					ConnectionDetailsPublisherTo: resourcefake.ConnectionDetailsPublisherTo{
+						To: &v1.PublishConnectionDetailsTo{
+							SecretStoreConfigRef: &v1.Reference{
+								Name: fakeConfig,
+							},
+						},
 					},
 				},
 			},
@@ -103,9 +106,13 @@ func TestManagerConnectStore(t *testing.T) {
 				sb: func(_ context.Context, _ client.Client, _ *tls.Config, _ v1.SecretStoreConfig) (Store, error) {
 					return nil, errors.New(errBuildStore)
 				},
-				p: &v1.PublishConnectionDetailsTo{
-					SecretStoreConfigRef: &v1.Reference{
-						Name: fakeConfig,
+				so: &resourcefake.Managed{
+					ConnectionDetailsPublisherTo: resourcefake.ConnectionDetailsPublisherTo{
+						To: &v1.PublishConnectionDetailsTo{
+							SecretStoreConfigRef: &v1.Reference{
+								Name: fakeConfig,
+							},
+						},
 					},
 				},
 			},
@@ -131,9 +138,13 @@ func TestManagerConnectStore(t *testing.T) {
 					MockScheme: test.NewMockSchemeFn(resourcefake.SchemeWith(&fake.StoreConfig{})),
 				},
 				sb: fakeStoreBuilderFn(fake.SecretStore{}),
-				p: &v1.PublishConnectionDetailsTo{
-					SecretStoreConfigRef: &v1.Reference{
-						Name: fakeConfig,
+				so: &resourcefake.Managed{
+					ConnectionDetailsPublisherTo: resourcefake.ConnectionDetailsPublisherTo{
+						To: &v1.PublishConnectionDetailsTo{
+							SecretStoreConfigRef: &v1.Reference{
+								Name: fakeConfig,
+							},
+						},
 					},
 				},
 			},
@@ -146,7 +157,7 @@ func TestManagerConnectStore(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			m := NewDetailsManager(tc.args.c, resourcefake.GVK(&fake.StoreConfig{}), WithStoreBuilder(tc.args.sb))
 
-			_, err := m.connectStore(context.Background(), tc.args.p)
+			_, err := m.connectStore(context.Background(), tc.args.so)
 			if diff := cmp.Diff(tc.want.err, err, test.EquateErrors()); diff != "" {
 				t.Errorf("\nReason: %s\nm.connectStore(...): -want error, +got error:\n%s", tc.reason, diff)
 			}
@@ -160,7 +171,7 @@ func TestManagerPublishConnection(t *testing.T) {
 		sb StoreBuilderFn
 
 		conn managed.ConnectionDetails
-		so   resource.ConnectionSecretOwner
+		so   store.SecretOwner
 	}
 
 	type want struct {
@@ -308,7 +319,7 @@ func TestManagerUnpublishConnection(t *testing.T) {
 		sb StoreBuilderFn
 
 		conn managed.ConnectionDetails
-		so   resource.ConnectionSecretOwner
+		so   store.SecretOwner
 	}
 
 	type want struct {
@@ -504,7 +515,7 @@ func TestManagerFetchConnection(t *testing.T) {
 		c  client.Client
 		sb StoreBuilderFn
 
-		so resource.ConnectionSecretOwner
+		so store.SecretOwner
 	}
 
 	type want struct {
@@ -650,8 +661,8 @@ func TestManagerPropagateConnection(t *testing.T) {
 		c  client.Client
 		sb StoreBuilderFn
 
-		to   resource.LocalConnectionSecretOwner
-		from resource.ConnectionSecretOwner
+		to   store.SecretOwner
+		from store.SecretOwner
 	}
 
 	type want struct {
