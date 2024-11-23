@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -76,50 +75,10 @@ type SecretKeySelector struct {
 	Key string `json:"key"`
 }
 
-// Policy represents the Resolve and Resolution policies of Reference instance.
-type Policy struct {
-	// Resolve specifies when this reference should be resolved. The default
-	// is 'IfNotPresent', which will attempt to resolve the reference only when
-	// the corresponding field is not present. Use 'Always' to resolve the
-	// reference on every reconcile.
-	// +optional
-	// +kubebuilder:validation:Enum=Always;IfNotPresent
-	Resolve *ResolvePolicy `json:"resolve,omitempty"`
-
-	// Resolution specifies whether resolution of this reference is required.
-	// The default is 'Required', which means the reconcile will fail if the
-	// reference cannot be resolved. 'Optional' means this reference will be
-	// a no-op if it cannot be resolved.
-	// +optional
-	// +kubebuilder:default=Required
-	// +kubebuilder:validation:Enum=Required;Optional
-	Resolution *ResolutionPolicy `json:"resolution,omitempty"`
-}
-
-// IsResolutionPolicyOptional checks whether the resolution policy of relevant reference is Optional.
-func (p *Policy) IsResolutionPolicyOptional() bool {
-	if p == nil || p.Resolution == nil {
-		return false
-	}
-	return *p.Resolution == ResolutionPolicyOptional
-}
-
-// IsResolvePolicyAlways checks whether the resolution policy of relevant reference is Always.
-func (p *Policy) IsResolvePolicyAlways() bool {
-	if p == nil || p.Resolve == nil {
-		return false
-	}
-	return *p.Resolve == ResolvePolicyAlways
-}
-
 // A Reference to a named object.
 type Reference struct {
 	// Name of the referenced object.
 	Name string `json:"name"`
-
-	// Policies for referencing.
-	// +optional
-	Policy *Policy `json:"policy,omitempty"`
 }
 
 // A TypedReference refers to an object by Name, Kind, and APIVersion. It is
@@ -148,10 +107,6 @@ type Selector struct {
 	// MatchControllerRef ensures an object with the same controller reference
 	// as the selecting object is selected.
 	MatchControllerRef *bool `json:"matchControllerRef,omitempty"`
-
-	// Policies for selection.
-	// +optional
-	Policy *Policy `json:"policy,omitempty"`
 }
 
 // SetGroupVersionKind sets the Kind and APIVersion of a TypedReference.
@@ -167,22 +122,15 @@ func (obj *TypedReference) GroupVersionKind() schema.GroupVersionKind {
 // GetObjectKind get the ObjectKind of a TypedReference.
 func (obj *TypedReference) GetObjectKind() schema.ObjectKind { return obj }
 
-// TODO(negz): Rename Resource* to Managed* to clarify that they enable the
-// resource.Managed interface.
-
-// A ResourceSpec defines the desired state of a managed resource.
-type ResourceSpec struct {
-	// WriteConnectionSecretToReference specifies the namespace and name of a
-	// Secret to which any connection details for this managed resource should
-	// be written. Connection details frequently include the endpoint, username,
-	// and password required to connect to the managed resource.
-	// This field is planned to be replaced in a future release in favor of
-	// PublishConnectionDetailsTo. Currently, both could be set independently
-	// and connection details would be published to both without affecting
-	// each other.
+// A ManagedSpec defines the desired state of a managed resource.
+type ManagedSpec struct {
+	// Crossplane functionality common to all managed resources.
 	// +optional
-	WriteConnectionSecretToReference *SecretReference `json:"writeConnectionSecretToRef,omitempty"`
+	Crossplane *ManagedCrossplane `json:"crossplane,omitempty"`
+}
 
+// ManagedCrossplane defines functionality common to all managed resources.
+type ManagedCrossplane struct {
 	// PublishConnectionDetailsTo specifies the connection secret config which
 	// contains a name, metadata and a reference to secret store config to
 	// which any connection details for this managed resource should be written.
@@ -197,8 +145,6 @@ type ResourceSpec struct {
 	// +kubebuilder:default={"name": "default"}
 	ProviderConfigReference *Reference `json:"providerConfigRef,omitempty"`
 
-	// THIS IS A BETA FIELD. It is on by default but can be opted out
-	// through a Crossplane feature flag.
 	// ManagementPolicies specify the array of actions Crossplane is allowed to
 	// take on the managed and external resources.
 	// This field is planned to replace the DeletionPolicy field in a future
@@ -210,21 +156,10 @@ type ResourceSpec struct {
 	// +optional
 	// +kubebuilder:default={"*"}
 	ManagementPolicies ManagementPolicies `json:"managementPolicies,omitempty"`
-
-	// DeletionPolicy specifies what will happen to the underlying external
-	// when this managed resource is deleted - either "Delete" or "Orphan" the
-	// external resource.
-	// This field is planned to be deprecated in favor of the ManagementPolicies
-	// field in a future release. Currently, both could be set independently and
-	// non-default values would be honored if the feature flag is enabled.
-	// See the design doc for more information: https://github.com/crossplane/crossplane/blob/499895a25d1a1a0ba1604944ef98ac7a1a71f197/design/design-doc-observe-only-resources.md?plain=1#L223
-	// +optional
-	// +kubebuilder:default=Delete
-	DeletionPolicy DeletionPolicy `json:"deletionPolicy,omitempty"`
 }
 
-// ResourceStatus represents the observed state of a managed resource.
-type ResourceStatus struct {
+// ManagedStatus represents the observed state of a managed resource.
+type ManagedStatus struct {
 	ConditionedStatus `json:",inline"`
 	ObservedStatus    `json:",inline"`
 }
@@ -304,31 +239,4 @@ type ProviderConfigUsage struct {
 
 	// ResourceReference to the managed resource using the provider config.
 	ResourceReference TypedReference `json:"resourceRef"`
-}
-
-// A TargetSpec defines the common fields of objects used for exposing
-// infrastructure to workloads that can be scheduled to.
-//
-// Deprecated.
-type TargetSpec struct {
-	// WriteConnectionSecretToReference specifies the name of a Secret, in the
-	// same namespace as this target, to which any connection details for this
-	// target should be written or already exist. Connection secrets referenced
-	// by a target should contain information for connecting to a resource that
-	// allows for scheduling of workloads.
-	// +optional
-	WriteConnectionSecretToReference *LocalSecretReference `json:"connectionSecretRef,omitempty"`
-
-	// A ResourceReference specifies an existing managed resource, in any
-	// namespace, which this target should attempt to propagate a connection
-	// secret from.
-	// +optional
-	ResourceReference *corev1.ObjectReference `json:"clusterRef,omitempty"`
-}
-
-// A TargetStatus defines the observed status a target.
-//
-// Deprecated.
-type TargetStatus struct {
-	ConditionedStatus `json:",inline"`
 }

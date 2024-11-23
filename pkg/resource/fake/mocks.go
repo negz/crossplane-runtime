@@ -324,7 +324,7 @@ type Composite struct {
 	ClaimReferencer
 	ConnectionDetailsPublisherTo
 
-	xpv1.ResourceStatus
+	xpv1.ManagedStatus
 	ConnectionDetailsLastPublishedTimer
 }
 
@@ -348,7 +348,7 @@ func (m *Composite) DeepCopyObject() runtime.Object {
 type Composed struct {
 	metav1.ObjectMeta
 	ConnectionDetailsPublisherTo
-	xpv1.ResourceStatus
+	xpv1.ManagedStatus
 }
 
 // GetObjectKind returns schema.ObjectKind.
