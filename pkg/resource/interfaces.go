@@ -25,7 +25,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
 // A Conditioned may have conditions set or retrieved. Conditions are typically
@@ -70,12 +69,6 @@ type Manageable interface {
 	GetManagementPolicies() xpv1.ManagementPolicies
 }
 
-// An Orphanable resource may specify a DeletionPolicy.
-type Orphanable interface {
-	SetDeletionPolicy(p xpv1.DeletionPolicy)
-	GetDeletionPolicy() xpv1.DeletionPolicy
-}
-
 // A ProviderConfigReferencer may reference a provider config resource.
 type ProviderConfigReferencer interface {
 	GetProviderConfigReference() *xpv1.Reference
@@ -99,64 +92,6 @@ type RequiredTypedResourceReferencer interface {
 type Finalizer interface {
 	AddFinalizer(ctx context.Context, obj Object) error
 	RemoveFinalizer(ctx context.Context, obj Object) error
-}
-
-// A CompositionSelector may select a composition of resources.
-type CompositionSelector interface {
-	SetCompositionSelector(s *metav1.LabelSelector)
-	GetCompositionSelector() *metav1.LabelSelector
-}
-
-// A CompositionReferencer may reference a composition of resources.
-type CompositionReferencer interface {
-	SetCompositionReference(ref *corev1.ObjectReference)
-	GetCompositionReference() *corev1.ObjectReference
-}
-
-// A CompositionRevisionReferencer may reference a specific revision of a
-// composition of resources.
-type CompositionRevisionReferencer interface {
-	SetCompositionRevisionReference(ref *corev1.LocalObjectReference)
-	GetCompositionRevisionReference() *corev1.LocalObjectReference
-}
-
-// A CompositionRevisionSelector may reference a set of
-// composition revisions.
-type CompositionRevisionSelector interface {
-	SetCompositionRevisionSelector(selector *metav1.LabelSelector)
-	GetCompositionRevisionSelector() *metav1.LabelSelector
-}
-
-// A CompositionUpdater uses a composition, and may update which revision of
-// that composition it uses.
-type CompositionUpdater interface {
-	SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy)
-	GetCompositionUpdatePolicy() *xpv1.UpdatePolicy
-}
-
-// A CompositeResourceDeleter creates a composite, and controls the policy
-// used to delete the composite.
-type CompositeResourceDeleter interface {
-	SetCompositeDeletePolicy(policy *xpv1.CompositeDeletePolicy)
-	GetCompositeDeletePolicy() *xpv1.CompositeDeletePolicy
-}
-
-// A ComposedResourcesReferencer may reference the resources it composes.
-type ComposedResourcesReferencer interface {
-	SetResourceReferences(refs []corev1.ObjectReference)
-	GetResourceReferences() []corev1.ObjectReference
-}
-
-// A CompositeResourceReferencer can reference a composite resource.
-type CompositeResourceReferencer interface {
-	SetResourceReference(r *reference.Composite)
-	GetResourceReference() *reference.Composite
-}
-
-// An EnvironmentConfigReferencer references a list of EnvironmentConfigs.
-type EnvironmentConfigReferencer interface {
-	SetEnvironmentConfigReferences(refs []corev1.ObjectReference)
-	GetEnvironmentConfigReferences() []corev1.ObjectReference
 }
 
 // A UserCounter can count how many users it has.
@@ -226,30 +161,4 @@ type ProviderConfigUsageList interface {
 
 	// GetItems returns the list of provider config usages.
 	GetItems() []ProviderConfigUsage
-}
-
-// A Composite resource composes one or more Composed resources.
-type Composite interface { //nolint:interfacebloat // This interface has to be big.
-	Object
-
-	CompositionSelector
-	CompositionReferencer
-	CompositionUpdater
-	CompositionRevisionReferencer
-	CompositionRevisionSelector
-	ComposedResourcesReferencer
-	ConnectionDetailsPublisherTo
-
-	Conditioned
-	ConnectionDetailsPublishedTimer
-	ReconciliationObserver
-}
-
-// Composed resources can be a composed into a Composite resource.
-type Composed interface {
-	Object
-
-	Conditioned
-	ConnectionDetailsPublisherTo
-	ReconciliationObserver
 }

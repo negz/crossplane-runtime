@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured/reference"
 )
 
 // Conditioned is a mock that implements Conditioned interface.
@@ -48,15 +47,6 @@ func (m *Conditioned) SetConditions(c ...xpv1.Condition) { m.Conditions = c }
 func (m *Conditioned) GetCondition(ct xpv1.ConditionType) xpv1.Condition {
 	return xpv1.Condition{Type: ct, Status: corev1.ConditionUnknown}
 }
-
-// ClaimReferencer is a mock that implements ClaimReferencer interface.
-type ClaimReferencer struct{ Ref *reference.Claim }
-
-// SetClaimReference sets the ClaimReference.
-func (m *ClaimReferencer) SetClaimReference(r *reference.Claim) { m.Ref = r }
-
-// GetClaimReference gets the ClaimReference.
-func (m *ClaimReferencer) GetClaimReference() *reference.Claim { return m.Ref }
 
 // ManagedResourceReferencer is a mock that implements ManagedResourceReferencer interface.
 type ManagedResourceReferencer struct{ Ref *corev1.ObjectReference }
@@ -127,108 +117,6 @@ func (m *Manageable) SetManagementPolicies(p xpv1.ManagementPolicies) { m.Policy
 
 // GetManagementPolicies gets the ManagementPolicies.
 func (m *Manageable) GetManagementPolicies() xpv1.ManagementPolicies { return m.Policy }
-
-// CompositionReferencer is a mock that implements CompositionReferencer interface.
-type CompositionReferencer struct{ Ref *corev1.ObjectReference }
-
-// SetCompositionReference sets the CompositionReference.
-func (m *CompositionReferencer) SetCompositionReference(r *corev1.ObjectReference) { m.Ref = r }
-
-// GetCompositionReference gets the CompositionReference.
-func (m *CompositionReferencer) GetCompositionReference() *corev1.ObjectReference { return m.Ref }
-
-// CompositionSelector is a mock that implements CompositionSelector interface.
-type CompositionSelector struct{ Sel *metav1.LabelSelector }
-
-// SetCompositionSelector sets the CompositionSelector.
-func (m *CompositionSelector) SetCompositionSelector(s *metav1.LabelSelector) { m.Sel = s }
-
-// GetCompositionSelector gets the CompositionSelector.
-func (m *CompositionSelector) GetCompositionSelector() *metav1.LabelSelector { return m.Sel }
-
-// CompositionRevisionReferencer is a mock that implements CompositionRevisionReferencer interface.
-type CompositionRevisionReferencer struct{ Ref *corev1.LocalObjectReference }
-
-// SetCompositionRevisionReference sets the CompositionRevisionReference.
-func (m *CompositionRevisionReferencer) SetCompositionRevisionReference(r *corev1.LocalObjectReference) {
-	m.Ref = r
-}
-
-// GetCompositionRevisionReference gets the CompositionRevisionReference.
-func (m *CompositionRevisionReferencer) GetCompositionRevisionReference() *corev1.LocalObjectReference {
-	return m.Ref
-}
-
-// CompositionRevisionSelector is a mock that implements CompositionRevisionSelector interface.
-type CompositionRevisionSelector struct{ Sel *metav1.LabelSelector }
-
-// SetCompositionRevisionSelector sets the CompositionRevisionSelector.
-func (m *CompositionRevisionSelector) SetCompositionRevisionSelector(ls *metav1.LabelSelector) {
-	m.Sel = ls
-}
-
-// GetCompositionRevisionSelector gets the CompositionRevisionSelector.
-func (m *CompositionRevisionSelector) GetCompositionRevisionSelector() *metav1.LabelSelector {
-	return m.Sel
-}
-
-// CompositionUpdater is a mock that implements CompositionUpdater interface.
-type CompositionUpdater struct{ Policy *xpv1.UpdatePolicy }
-
-// SetCompositionUpdatePolicy sets the CompositionUpdatePolicy.
-func (m *CompositionUpdater) SetCompositionUpdatePolicy(p *xpv1.UpdatePolicy) {
-	m.Policy = p
-}
-
-// GetCompositionUpdatePolicy gets the CompositionUpdatePolicy.
-func (m *CompositionUpdater) GetCompositionUpdatePolicy() *xpv1.UpdatePolicy {
-	return m.Policy
-}
-
-// CompositeResourceDeleter is a mock that implements CompositeResourceDeleter interface.
-type CompositeResourceDeleter struct{ Policy *xpv1.CompositeDeletePolicy }
-
-// SetCompositeDeletePolicy sets the CompositeDeletePolicy.
-func (m *CompositeResourceDeleter) SetCompositeDeletePolicy(p *xpv1.CompositeDeletePolicy) {
-	m.Policy = p
-}
-
-// GetCompositeDeletePolicy gets the CompositeDeletePolicy.
-func (m *CompositeResourceDeleter) GetCompositeDeletePolicy() *xpv1.CompositeDeletePolicy {
-	return m.Policy
-}
-
-// CompositeResourceReferencer is a mock that implements CompositeResourceReferencer interface.
-type CompositeResourceReferencer struct{ Ref *reference.Composite }
-
-// SetResourceReference sets the composite resource reference.
-func (m *CompositeResourceReferencer) SetResourceReference(p *reference.Composite) { m.Ref = p }
-
-// GetResourceReference gets the composite resource reference.
-func (m *CompositeResourceReferencer) GetResourceReference() *reference.Composite { return m.Ref }
-
-// ComposedResourcesReferencer is a mock that implements ComposedResourcesReferencer interface.
-type ComposedResourcesReferencer struct{ Refs []corev1.ObjectReference }
-
-// SetResourceReferences sets the composed references.
-func (m *ComposedResourcesReferencer) SetResourceReferences(r []corev1.ObjectReference) { m.Refs = r }
-
-// GetResourceReferences gets the composed references.
-func (m *ComposedResourcesReferencer) GetResourceReferences() []corev1.ObjectReference { return m.Refs }
-
-// An EnvironmentConfigReferencer is a mock that implements the
-// EnvironmentConfigReferencer interface.
-type EnvironmentConfigReferencer struct{ Refs []corev1.ObjectReference }
-
-// SetEnvironmentConfigReferences sets the EnvironmentConfig references.
-func (m *EnvironmentConfigReferencer) SetEnvironmentConfigReferences(refs []corev1.ObjectReference) {
-	m.Refs = refs
-}
-
-// GetEnvironmentConfigReferences gets the EnvironmentConfig references.
-func (m *EnvironmentConfigReferencer) GetEnvironmentConfigReferences() []corev1.ObjectReference {
-	return m.Refs
-}
 
 // ConnectionDetailsLastPublishedTimer is a mock that implements the
 // ConnectionDetailsLastPublishedTimer interface.
@@ -303,62 +191,6 @@ func (m *Managed) GetObjectKind() schema.ObjectKind {
 // DeepCopyObject returns a copy of the object as runtime.Object.
 func (m *Managed) DeepCopyObject() runtime.Object {
 	out := &Managed{}
-	j, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
-// Composite is a mock that implements Composite interface.
-type Composite struct {
-	metav1.ObjectMeta
-	CompositionSelector
-	CompositionReferencer
-	CompositionRevisionReferencer
-	CompositionRevisionSelector
-	CompositionUpdater
-	ComposedResourcesReferencer
-	EnvironmentConfigReferencer
-	ClaimReferencer
-	ConnectionDetailsPublisherTo
-
-	xpv1.ManagedStatus
-	ConnectionDetailsLastPublishedTimer
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (m *Composite) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a copy of the object as runtime.Object.
-func (m *Composite) DeepCopyObject() runtime.Object {
-	out := &Composite{}
-	j, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	}
-	_ = json.Unmarshal(j, out)
-	return out
-}
-
-// Composed is a mock that implements Composed interface.
-type Composed struct {
-	metav1.ObjectMeta
-	ConnectionDetailsPublisherTo
-	xpv1.ManagedStatus
-}
-
-// GetObjectKind returns schema.ObjectKind.
-func (m *Composed) GetObjectKind() schema.ObjectKind {
-	return schema.EmptyObjectKind
-}
-
-// DeepCopyObject returns a copy of the object as runtime.Object.
-func (m *Composed) DeepCopyObject() runtime.Object {
-	out := &Composed{}
 	j, err := json.Marshal(m)
 	if err != nil {
 		panic(err)

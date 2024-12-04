@@ -37,7 +37,6 @@ import (
 
 	xpv1 "github.com/crossplane/crossplane-runtime/apis/common/v1"
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
-	"github.com/crossplane/crossplane-runtime/pkg/resource/unstructured"
 )
 
 // SecretTypeConnection is the type of Crossplane connection secrets.
@@ -57,13 +56,6 @@ const (
 
 // A ManagedKind contains the type metadata for a kind of managed resource.
 type ManagedKind schema.GroupVersionKind
-
-// A CompositeKind contains the type metadata for a kind of composite resource.
-type CompositeKind schema.GroupVersionKind
-
-// A CompositeClaimKind contains the type metadata for a kind of composite
-// resource claim.
-type CompositeClaimKind schema.GroupVersionKind
 
 // ProviderConfigKinds contains the type metadata for a kind of provider config.
 type ProviderConfigKinds struct {
@@ -393,12 +385,6 @@ func AsProtobufStruct(o runtime.Object) (*structpb.Struct, error) {
 	// If the supplied object is *Unstructured we don't need to round-trip.
 	if u, ok := o.(*kunstructured.Unstructured); ok {
 		s, err := structpb.NewStruct(u.Object)
-		return s, errors.Wrap(err, errStructFromUnstructured)
-	}
-
-	// If the supplied object wraps *Unstructured we don't need to round-trip.
-	if w, ok := o.(unstructured.Wrapper); ok {
-		s, err := structpb.NewStruct(w.GetUnstructured().Object)
 		return s, errors.Wrap(err, errStructFromUnstructured)
 	}
 
