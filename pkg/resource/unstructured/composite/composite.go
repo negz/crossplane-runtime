@@ -96,13 +96,13 @@ func (c *Unstructured) GetUnstructured() *unstructured.Unstructured {
 
 // GetCompositionSelector of this composite resource.
 func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
-	path := "spec.crossplane.compositionSelector"
-	if c.Schema == SchemaLegacy {
-		path = "spec.compositionSelector"
+	// Only legacy XRs support composition selectors.
+	if c.Schema != SchemaLegacy {
+		return nil
 	}
 
 	out := &metav1.LabelSelector{}
-	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionSelector", out); err != nil {
 		return nil
 	}
 	return out
@@ -110,23 +110,23 @@ func (c *Unstructured) GetCompositionSelector() *metav1.LabelSelector {
 
 // SetCompositionSelector of this composite resource.
 func (c *Unstructured) SetCompositionSelector(sel *metav1.LabelSelector) {
-	path := "spec.crossplane.compositionSelector"
-	if c.Schema == SchemaLegacy {
-		path = "spec.compositionSelector"
+	// Only legacy XRs support composition selectors.
+	if c.Schema != SchemaLegacy {
+		return
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(path, sel)
+	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionSelector", sel)
 }
 
 // GetCompositionReference of this composite resource.
 func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
-	path := "spec.crossplane.compositionRef"
-	if c.Schema == SchemaLegacy {
-		path = "spec.compositionRef"
+	// Only legacy XRs support composition refs.
+	if c.Schema != SchemaLegacy {
+		return nil
 	}
 
 	out := &corev1.ObjectReference{}
-	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRef", out); err != nil {
 		return nil
 	}
 	return out
@@ -134,23 +134,23 @@ func (c *Unstructured) GetCompositionReference() *corev1.ObjectReference {
 
 // SetCompositionReference of this composite resource.
 func (c *Unstructured) SetCompositionReference(ref *corev1.ObjectReference) {
-	path := "spec.crossplane.compositionRef"
-	if c.Schema == SchemaLegacy {
-		path = "spec.compositionRef"
+	// Only legacy XRs support composition refs.
+	if c.Schema != SchemaLegacy {
+		return
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(path, ref)
+	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRef", ref)
 }
 
 // GetCompositionRevisionReference of this composite resource.
 func (c *Unstructured) GetCompositionRevisionReference() *corev1.LocalObjectReference {
-	path := "spec.crossplane.compositionRevisionRef"
-	if c.Schema == SchemaLegacy {
-		path = "spec.compositionRevisionRef"
+	// Only legacy XRs support composition revision refs.
+	if c.Schema != SchemaLegacy {
+		return nil
 	}
 
 	out := &corev1.LocalObjectReference{}
-	if err := fieldpath.Pave(c.Object).GetValueInto(path, out); err != nil {
+	if err := fieldpath.Pave(c.Object).GetValueInto("spec.compositionRevisionRef", out); err != nil {
 		return nil
 	}
 	return out
@@ -158,12 +158,12 @@ func (c *Unstructured) GetCompositionRevisionReference() *corev1.LocalObjectRefe
 
 // SetCompositionRevisionReference of this composite resource.
 func (c *Unstructured) SetCompositionRevisionReference(ref *corev1.LocalObjectReference) {
-	path := "spec.crossplane.compositionRevisionRef"
-	if c.Schema == SchemaLegacy {
-		path = "spec.compositionRevisionRef"
+	// Only legacy XRs support composition revision refs.
+	if c.Schema != SchemaLegacy {
+		return
 	}
 
-	_ = fieldpath.Pave(c.Object).SetValue(path, ref)
+	_ = fieldpath.Pave(c.Object).SetValue("spec.compositionRevisionRef", ref)
 }
 
 // GetCompositionRevisionSelector of this resource claim.
